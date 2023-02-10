@@ -5,7 +5,7 @@ const path = require("path");
 const bcrypt = require("bcrypt");
 const jwt = require("jsonwebtoken");
 
-const databasePath = path.join(__dirname, "covid19IndiaPortal.db");
+const databasePath = path.join(__dirname, "userData.db");
 
 const app = express();
 
@@ -31,41 +31,46 @@ const initializeDbAndServer = async () => {
 
 initializeDbAndServer();
 
-const convertDbObjectToResponseObject = (dbObject) => {
-  return {
-    stateId: dbObject.state_id,
-    stateName: dbObject.state_name,
-    population: dbObject.population,
-  };
-};
+app.post("/register", async (request, response) => {
+  const { username, email, password } = request.body;
+  const hashedPassword = await bcrypt.hash(password, 10);
+  const selectUserQuery = `SELECT * FROM user WHERE email = '${email}';`;
+  const databaseUser = await database.get(selectUserQuery);
 
-const convertDbObjectToResponseObject2 = (dbObject) => {
-  return {
-    districtId: dbObject.district_id,
-    districtName: dbObject.district_name,
-    stateId: dbObject.state_id,
-    cases: dbObject.cases,
-    cured: dbObject.cured,
-    active: dbObject.active,
-    deaths: dbObject.deaths,
-  };
-};
+  if (databaseUser === undefined) {
+    const createUserQuery = `
+     INSERT INTO
+      user (email, password, username)
+     VALUES
+      (
+       '${email}',
+       '${hashedPassword}',
+       '${username}'  
+      );`;
+    const user = await database.run(createUserQuery);
+    response.send("User created successfully");
+  } else {
+    response.status(400);
+    response.send("User already exists");
+  }
+});
 
-app.post("/login/", async (request, response) => {
-  const { username, password } = request.body;
-  const hashedPassword = await bcrypt.hash(request.body.password, 10);
-  const selectUserQuery = `SELECT * FROM user WHERE username = '${username}'`;
-  const dbUser = await database.get(selectUserQuery);
-  if (dbUser === undefined) {
+app.post("/login", async (request, response) => {
+  const { email, password } = request.body;
+  const selectUserQuery = `SELECT * FROM user WHERE email = '${email}';`;
+  const databaseUser = await database.get(selectUserQuery);
+
+  if (databaseUser === undefined) {
     response.status(400);
     response.send("Invalid user");
   } else {
-    const isPasswordMatched = await bcrypt.compare(password, dbUser.password);
+    const isPasswordMatched = await bcrypt.compare(
+      password,
+      databaseUser.password
+    );
     if (isPasswordMatched === true) {
-      const payload = {
-        username: username,
-      };
-      const jwtToken = jwt.sign(payload, "MY_SECRET_TOKEN");
+      const payload = { email: email };
+      const jwtToken = jwt.sign(payload, "secret_key");
       response.send({ jwtToken });
     } else {
       response.status(400);
@@ -74,115 +79,188 @@ app.post("/login/", async (request, response) => {
   }
 });
 
-app.get("/states/", (request, response) => {
+const authenticationToken = (request, response, next) => {
   let jwtToken;
   const authHeader = request.headers["authorization"];
   if (authHeader !== undefined) {
     jwtToken = authHeader.split(" ")[1];
-  }
-  if (jwtToken === undefined) {
+  } else {
     response.status(401);
     response.send("Invalid JWT Token");
-  } else {
-    jwt.verify(jwtToken, "MY_SECRET_TOKEN", async (error, payload) => {
-      if (error) {
-        response.send("Invalid JWT Token");
-      } else {
-        const getBooksQuery = `
-            SELECT
-              *
-            FROM
-             state`;
-        const booksArray = await database.all(getBooksQuery);
-        response.send(
-          booksArray.map((eachPlayer) =>
-            convertDbObjectToResponseObject(eachPlayer)
-          )
-        );
-      }
-    });
   }
-});
 
-const authenticateToken = (request, response, next) => {
-  let jwtToken;
-  const authHeader = request.headers["authorization"];
-  if (authHeader !== undefined) {
-    jwtToken = authHeader.split(" ")[1];
-  }
-  if (jwtToken === undefined) {
-    response.status(401);
-    response.send("Invalid JWT Token");
-  } else {
-    jwt.verify(jwtToken, "MY_SECRET_TOKEN", async (error, payload) => {
+  if (jwtToken !== undefined) {
+    jwt.verify(jwtToken, "secret_key", async (error, payload) => {
       if (error) {
         response.status(401);
         response.send("Invalid JWT Token");
       } else {
-        request.username = payload.username;
+        request.email = payload.email;
         next();
       }
     });
   }
 };
 
-app.get("/states/:stateId/", authenticateToken, async (request, response) => {
-  let { stateId } = request.params;
-  const selectUserQuery = `SELECT * FROM state WHERE state_id = '${stateId}'`;
-  const userDetails = await database.get(selectUserQuery);
-  response.send(convertDbObjectToResponseObject(userDetails));
-});
-
-app.get(
-  "/states/:stateId/stats/",
-  authenticateToken,
-  async (request, response) => {
-    let { stateId } = request.params;
-    const selectUserQuery = `SELECT sum(cases) AS "totalCases", sum(cured) AS "totalCured", sum(active) AS "totalActive", sum(deaths) AS "totalDeaths" FROM district WHERE state_id = '${stateId}'`;
-    const userDetails = await database.get(selectUserQuery);
-    response.send(userDetails);
-  }
-);
-
-app.get(
-  "/districts/:districtId/",
-  authenticateToken,
-  async (request, response) => {
-    let { districtId } = request.params;
-    const selectUserQuery = `SELECT * FROM district WHERE district_id = '${districtId}'`;
-    const userDetails = await database.get(selectUserQuery);
-    response.send(convertDbObjectToResponseObject2(userDetails));
-  }
-);
-
-app.post("/districts/", authenticateToken, async (request, response) => {
-  let { districtName, stateId, cases, cured, active, deaths } = request.body;
-  const selectUserQuery = `INSERT INTO district(district_name, state_id, cases, cured, active, deaths) VALUES ('${districtName}','${stateId}', '${cases}','${cured}','${active}','${deaths}')`;
-  const userDetails = await database.run(selectUserQuery);
-  response.send("District Successfully Added");
-  console.log(userDetails);
-});
-
 app.put(
-  "/districts/:districtId/",
-  authenticateToken,
+  "/forgot-user-password",
+  authenticationToken,
   async (request, response) => {
-    let { districtId } = request.params;
-    let { districtName, stateId, cases, cured, active, deaths } = request.body;
-    const selectUserQuery = `UPDATE district SET district_name = '${districtName}', state_id = '${stateId}', cases = '${cases}', cured = '${cured}', active = '${active}', deaths = '${deaths}' WHERE district_id = '${districtId}'`;
-    const userDetails = await database.run(selectUserQuery);
-    response.send("District Details Updated");
+    let { email } = request;
+    const { newPassword } = request.body;
+    const selectUserQuery = `SELECT * FROM user WHERE email = '${email}';`;
+    const databaseUser = await database.get(selectUserQuery);
+    if (databaseUser === undefined) {
+      response.status(400);
+      response.send("Invalid user");
+    } else {
+      const isPasswordMatched = await bcrypt.compare(
+        newPassword,
+        databaseUser.password
+      );
+      if (isPasswordMatched === false) {
+        const hashedPassword = await bcrypt.hash(newPassword, 10);
+        const updatePasswordQuery = `
+          UPDATE
+            user
+          SET
+            password = '${hashedPassword}'
+          WHERE
+            email = '${email}';`;
+
+        const user = await database.run(updatePasswordQuery);
+        response.send("Password updated");
+      } else {
+        response.status(400);
+        response.send("Current password is same as old password.");
+      }
+    }
   }
 );
 
-app.delete(
-  "/districts/:districtId/",
-  authenticateToken,
+// social media post  api
+app.post(
+  "/user/social-media-post",
+  authenticationToken,
   async (request, response) => {
-    let { districtId } = request.params;
-    const selectUserQuery = `DELETE FROM district WHERE district_id = '${districtId}'`;
-    const userDetails = await database.run(selectUserQuery);
-    response.send("District Removed");
+    let { email } = request;
+    const { post_content } = request.body;
+    const postRequestQuery = `INSERT INTO social_media_post(post_content, email) VALUES('${post_content}', '${email}');`;
+    const postss = await database.run(postRequestQuery);
+    const post_id = postss.lastID;
+    response.send("Post Created Successfully.");
+  }
+);
+
+// update social media post api
+app.put(
+  "/social-media-post/:post_id/",
+  authenticationToken,
+  async (request, response) => {
+    let { email } = request;
+    const { post_content } = request.body;
+    let { post_id } = request.params;
+    const selectUserQuery = `SELECT * FROM social_media_post WHERE post_id = '${post_id}';`;
+    const databaseUser = await database.get(selectUserQuery);
+    if (databaseUser === undefined) {
+      response.status(400);
+      response.send("Provide valid post id.");
+    } else {
+      const updatePostQuery = `
+          UPDATE
+            social_media_post
+          SET
+            post_content = '${post_content}'
+          WHERE
+            post_id = '${post_id}';`;
+
+      const user = await database.run(updatePostQuery);
+      response.send("Post Updated Successfully.");
+    }
+  }
+);
+
+//get post api
+app.get(
+  "/social-media-post",
+  authenticationToken,
+  async (request, response) => {
+    let { email } = request;
+    const postRequestQuery = `SELECT * FROM social_media_post WHERE email='${email}';`;
+    const postss = await database.all(postRequestQuery);
+    response.send(postss);
+  }
+);
+
+//delete post api
+app.delete(
+  "/social-media-post/:post_id/",
+  authenticationToken,
+  async (request, response) => {
+    let { post_id } = request.params;
+    const selectUserQuery = `SELECT * FROM social_media_post WHERE post_id = '${post_id}';`;
+    const databaseUser = await database.get(selectUserQuery);
+    if (databaseUser === undefined) {
+      response.status(400);
+      response.send("Provide valid post id.");
+    } else {
+      const postRequestQuery = `DELETE FROM social_media_post WHERE post_id='${post_id}';`;
+      const postss = await database.run(postRequestQuery);
+      response.send("Post Deleted Successfully.");
+    }
+  }
+);
+
+//like and comment api
+app.post(
+  "/user/comment/:post_id/",
+  authenticationToken,
+  async (request, response) => {
+    let { email } = request;
+    let { post_id } = request.params;
+    const { comment, like } = request.body;
+    const selectUserQuery = `SELECT * FROM social_media_post WHERE post_id = '${post_id}';`;
+    const databaseUser = await database.get(selectUserQuery);
+
+    if (databaseUser === undefined) {
+      response.status(400);
+      response.send("Post not found");
+    } else {
+      const postRequestQuery = `INSERT INTO like_comments(post_id, comment, like, email) VALUES('${databaseUser.post_id}', '${comment}', '${like}', '${email}');`;
+      const postss = await database.run(postRequestQuery);
+      const post_id = postss.lastID;
+      response.send("Commented Successfully.");
+    }
+  }
+);
+
+//get like & comment api
+app.get(
+  "/comment/:post_id/",
+  authenticationToken,
+  async (request, response) => {
+    let { email } = request;
+    let { post_id } = request.params;
+    const postRequestQuery = `SELECT * FROM like_comments WHERE post_id='${post_id}';`;
+    const postss = await database.all(postRequestQuery);
+    if (postss === undefined) {
+      response.status(400);
+      response.send("Post not found");
+    } else {
+      response.send(postss);
+    }
+  }
+);
+
+//delete comment api
+app.delete(
+  "/comment/:comment_id/",
+  authenticationToken,
+  async (request, response) => {
+    let { comment_id } = request.params;
+    const postRequestQuery = `DELETE FROM like_comments WHERE comment_id='${comment_id}';`;
+    const postss = await database.run(postRequestQuery);
+    response.send("Comment Deleted Successfully.");
   }
 );
 

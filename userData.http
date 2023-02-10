@@ -1,0 +1,84 @@
+//register user api
+POST http://localhost:3000/register/
+Content-Type: application/json
+
+{
+    "email":"kartik@gmail.com",
+    "password":"123",
+    "username":"kartik singh"
+}
+###
+//login user api
+POST http://localhost:3000/login/
+Content-Type: application/json
+
+{
+    "email":"kartik@gmail.com",
+    "password":"123"
+}
+
+###
+//forgot password api
+PUT http://localhost:3000/forgot-user-password/
+Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJlbWFpbCI6ImthcnRpa0BnbWFpbC5jb20iLCJpYXQiOjE2NzYwMjk0MTN9.awlbLwYDMVm0ZwublbE4KGkLE7vo_Xa35F7MxwY0BBQ
+Content-Type: application/json
+
+{
+    "newPassword":"12345"
+}
+
+
+###
+// create social media post api
+POST http://localhost:3000/user/social-media-post/
+Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJlbWFpbCI6ImthcnRpa0BnbWFpbC5jb20iLCJpYXQiOjE2NzYwMjk0MTN9.awlbLwYDMVm0ZwublbE4KGkLE7vo_Xa35F7MxwY0BBQ
+Content-Type: application/json
+
+{
+    "post_content":"Good Morning Everyone. This is my project."
+}
+
+###
+//get social media post
+GET http://localhost:3000/social-media-post/
+Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJlbWFpbCI6ImthcnRpa0BnbWFpbC5jb20iLCJpYXQiOjE2NzYwMjk0MTN9.awlbLwYDMVm0ZwublbE4KGkLE7vo_Xa35F7MxwY0BBQ
+
+###
+//Update social media post
+PUT http://localhost:3000/social-media-post/2
+Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJlbWFpbCI6ImthcnRpa0BnbWFpbC5jb20iLCJpYXQiOjE2NzYwMjk0MTN9.awlbLwYDMVm0ZwublbE4KGkLE7vo_Xa35F7MxwY0BBQ
+Content-Type: application/json
+
+{
+    "post_content":"Starting new projects."
+}
+
+###
+// delete social media post api
+DELETE http://localhost:3000/social-media-post/2
+Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJlbWFpbCI6ImthcnRpa0BnbWFpbC5jb20iLCJpYXQiOjE2NzYwMjk0MTN9.awlbLwYDMVm0ZwublbE4KGkLE7vo_Xa35F7MxwY0BBQ
+
+
+###
+
+//like & comment api
+POST http://localhost:3000/user/comment/3
+Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJlbWFpbCI6ImthcnRpa0BnbWFpbC5jb20iLCJpYXQiOjE2NzYwMjk0MTN9.awlbLwYDMVm0ZwublbE4KGkLE7vo_Xa35F7MxwY0BBQ
+Content-Type: application/json
+
+{
+    "comment":"Good to know that.",
+    "like":"liked"
+}
+
+###
+//get like & comment on post api
+GET http://localhost:3000/comment/3
+Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJlbWFpbCI6ImthcnRpa0BnbWFpbC5jb20iLCJpYXQiOjE2NzYwMjk0MTN9.awlbLwYDMVm0ZwublbE4KGkLE7vo_Xa35F7MxwY0BBQ
+
+
+###
+//delete comment api
+
+DELETE http://localhost:3000/comment/3
+Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJlbWFpbCI6ImthcnRpa0BnbWFpbC5jb20iLCJpYXQiOjE2NzYwMjk0MTN9.awlbLwYDMVm0ZwublbE4KGkLE7vo_Xa35F7MxwY0BBQ
